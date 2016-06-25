@@ -161,7 +161,7 @@ class IRC(object):
         thread.start_new_thread(self.parse_loop, ())
         channels = self.conf.get('channels')
         if channels:
-            start_date = datetime.datetime.utcnow() - datetime.timedelta(minutes=60)
+            start_date = datetime.datetime.utcnow() - datetime.timedelta(minutes=5)
             token = self.conf.get('twitter_token')
             self.pdx_alerts = pdxalerts.PdxAlerts(start_date, token, channels[0])
             thread.start_new_thread(self.pdx_alerts.run, ())
