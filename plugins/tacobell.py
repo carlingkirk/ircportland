@@ -101,7 +101,7 @@ def get_next_phrase(phrases, skips=None, randomness=0.5):
 
 
 @hook.command
-def tacobell():
+def tacobell(msg):
     food = get_next_phrase(counts, randomness=.1)
     food += get_next_phrase(adjectives, skips=food, randomness=.85)
     food += get_next_phrase(fillers, skips=food, randomness=.75)
