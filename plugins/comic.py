@@ -22,7 +22,8 @@ mcache = dict()
 
 @hook.event("*")
 def track(paraml, inp=None, bot=None, nick=None, channel=None):
-    if len(inp) > 1 and inp[1] and str(inp[1]) != ".comic":
+    user_ignore_list = bot.config.get("user_ignore_list")
+    if len(inp) > 1 and inp[1] and str(inp[1]) != ".comic" and nick not in user_ignore_list and inp[1][0] != ".":
         key = (channel)
         if key not in mcache:
             mcache[key] = []
@@ -35,7 +36,6 @@ def track(paraml, inp=None, bot=None, nick=None, channel=None):
 
 @hook.command
 def comic(inp, bot=None, nick=None, channel=None):
-    print "comic called " + inp
     text = channel
     try:
         msgs = mcache[channel]
@@ -124,7 +124,7 @@ def rendertext( st, font, draw, pos):
     ch = pos[1]
     for s in st:
         w, h = draw.textsize(s, font=font)
-        draw.text((pos[0], ch), s, font=font, fill=(0xff, 0xff, 0xff, 0xff))
+        draw.text((pos[0], ch), s, font=font, fill=(0x5b, 0xf6, 0xff, 0xff))
         ch += h
 
 
