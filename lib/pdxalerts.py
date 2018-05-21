@@ -52,6 +52,9 @@ class PdxAlerts:
         tweets = [];
         format = '%a %b %d %H:%M:%S +0000 %Y'
         for item in response:
-            tweet = {'id': item['id'], 'text': item['text'], 'date': datetime.datetime.strptime(item['created_at'], format), 'url': 'https://twitter.com/pdxalerts/status/{}'.format(item['id'])}
-            tweets.append(tweet)
+            try:
+                tweet = {'id': item['id'], 'text': item['text'], 'date': datetime.datetime.strptime(item['created_at'], format), 'url': 'https://twitter.com/pdxalerts/status/{}'.format(item['id'])}
+                tweets.append(tweet)
+            catch TypeError:
+                pass
         return tweets

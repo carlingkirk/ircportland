@@ -23,7 +23,7 @@ mcache = dict()
 @hook.event("*")
 def track(paraml, inp=None, bot=None, nick=None, channel=None):
     user_ignore_list = bot.config.get("user_ignore_list")
-    if len(inp) > 1 and inp[1] and str(inp[1]) != ".comic" and nick not in user_ignore_list and inp[1][0] != ".":
+    if inp and len(inp) > 1 and inp[1] and str(inp[1]) != ".comic" and nick not in user_ignore_list and inp[1][0] != ".":
         key = (channel)
         if key not in mcache:
             mcache[key] = []
