@@ -10,3 +10,5 @@ pep8.py
 *.db
 web
 old_plugins/
+/nohup.out
+/nohup1.out
