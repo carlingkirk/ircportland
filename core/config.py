@@ -1,6 +1,7 @@
 import inspect
 import json
 import os
+from core.irc import SSLIRC, IRC
 
 def find_config():
     # for backwards compatibility, look for either 'config' or 'config.json'
@@ -44,23 +45,20 @@ if not os.path.exists(find_config()):
         }''') + '\n')
 
 
-def config():
+def do_config(bot):
     # reload config from file if file has changed
     config_mtime = os.stat(find_config()).st_mtime
     if bot._config_mtime != config_mtime:
         try:
             bot.config = json.load(open(find_config()))
             bot._config_mtime = config_mtime
-            for name, conf in bot.config['connections'].iteritems():
+            for name, conf in bot.config['connections'].items():
                 if name in bot.conns:
                     bot.conns[name].set_conf(conf)
                 else:
                     if conf.get('ssl'):
-                        bot.conns[name] = SSLIRC(conf)
+                        bot.conns[name] = SSLIRC(bot, conf)
                     else:
-                        bot.conns[name] = IRC(conf)
-        except ValueError, e:
-            print 'ERROR: malformed config!', e
-
-
-bot._config_mtime = 0
+                        bot.conns[name] = IRC(bot, conf)
+        except ValueError as e:
+            print ('ERROR: malformed config!', e)

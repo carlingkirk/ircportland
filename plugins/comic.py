@@ -77,7 +77,7 @@ def comic(inp, bot=None, nick=None, channel=None):
     image_comic = BytesIO()
 
     # Save the completed composition to a JPEG in memory
-    make_comic(chars, panels, bot).save(image_comic, format="JPEG", quality=85)
+    make_comic(chars, panels, bot).convert("RGB").save(image_comic, format="JPEG", quality=85)
     api_key = bot.config.get("api_keys", {}).get("imgur_client_id")
 
     # Get API Key, upload the comic to imgur
@@ -160,7 +160,7 @@ def make_comic(chars, panels, bot):
     imgheight = panelheight * len(panels)
     background_file = bot.config.get("resources", {}).get("background")
         
-    bg = Image.open(background_file)
+    bg = Image.open(background_file).convert("RGB")
     im = Image.new("RGBA", (imgwidth, imgheight), (0xff, 0xff, 0xff, 0xff))
     font_file = bot.config.get("resources", {}).get("font")
     font_size = bot.config.get("resources", {}).get("font_size")

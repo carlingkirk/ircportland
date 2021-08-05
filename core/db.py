@@ -1,6 +1,6 @@
 import os
 import sqlite3
-
+from core import config
 
 def get_db_connection(conn, name=''):
     "returns an sqlite3 connection to a persistent database"
@@ -8,7 +8,5 @@ def get_db_connection(conn, name=''):
     if not name:
         name = '%s.%s.db' % (conn.nick, conn.server)
 
-    filename = os.path.join(bot.persist_dir, name)
+    filename = os.path.join(os.path.abspath('../persist'), name)
     return sqlite3.connect(filename, timeout=10)
-
-bot.get_db_connection = get_db_connection

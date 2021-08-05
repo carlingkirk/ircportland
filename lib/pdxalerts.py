@@ -1,5 +1,4 @@
-import httplib, urllib, urllib2, base64, requests, json, datetime, time
-
+import urllib, base64, requests, datetime, time
 
 class PdxAlerts:
 
@@ -32,11 +31,11 @@ class PdxAlerts:
             time.sleep(60)
 
     def get_bearer_token(self):
-        send_token = base64.b64encode(self.token)
+        send_token = base64.b64encode(self.token.encode('utf-8'))
         url = self.token_url
         headers = {"Content-type": "application/x-www-form-urlencoded;charset=UTF-8",
-                "Authorization": 'Basic ' + send_token}
-        params = urllib.urlencode({'grant_type':'client_credentials'})
+                "Authorization": 'Basic ' + str(send_token)}
+        params = urllib.parse.urlencode({'grant_type':'client_credentials'})
         r = requests.post(url, data=params, headers=headers)
         return r.json()
 
@@ -49,7 +48,7 @@ class PdxAlerts:
         return r.json()
 
     def build_tweets(self, response):
-        tweets = [];
+        tweets = []
         format = '%a %b %d %H:%M:%S +0000 %Y'
         for item in response:
             try:

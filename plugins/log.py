@@ -100,4 +100,4 @@ def log(paraml, input=None, bot=None):
         fd = get_log_fd(bot.persist_dir, input.server, input.chan)
         fd.write(timestamp + ' ' + beau + '\n')
 
-    print timestamp, input.chan, beau.encode('utf8', 'ignore')
+    print (timestamp, input.chan, beau.encode('utf8', 'ignore'))

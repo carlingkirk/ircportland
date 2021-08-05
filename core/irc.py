@@ -1,9 +1,8 @@
 import re
 import socket
 import time
-import thread
-import Queue
-import pdxalerts
+import threading
+import queue
 import datetime
 
 from ssl import wrap_socket, CERT_NONE, CERT_REQUIRED, SSLError
@@ -18,25 +17,15 @@ def decode(txt):
     return txt.decode('utf-8', 'ignore')
 
 
-def censor(text):
-    text = text.replace('\n', '').replace('\r', '')
-    replacement = '[censored]'
-    if 'censored_strings' in bot.config:
-        words = map(re.escape, bot.config['censored_strings'])
-        regex = re.compile('(%s)' % "|".join(words))
-        text = regex.sub(replacement, text)
-    return text
-
-
 class crlf_tcp(object):
 
     "Handles tcp connections that consist of utf-8 lines ending with crlf"
 
     def __init__(self, host, port, timeout=300):
-        self.ibuffer = ""
-        self.obuffer = ""
-        self.oqueue = Queue.Queue()  # lines to be sent out
-        self.iqueue = Queue.Queue()  # lines that were received
+        self.ibuffer = b""
+        self.obuffer = b""
+        self.oqueue = queue.Queue()  # lines to be sent out
+        self.iqueue = queue.Queue()  # lines that were received
         self.socket = self.create_socket()
         self.host = host
         self.port = port
@@ -47,8 +36,8 @@ class crlf_tcp(object):
 
     def run(self):
         self.socket.connect((self.host, self.port))
-        thread.start_new_thread(self.recv_loop, ())
-        thread.start_new_thread(self.send_loop, ())
+        threading.Thread(target=self.recv_loop).start()
+        threading.Thread(target=self.send_loop).start()
 
     def recv_from_socket(self, nbytes):
         return self.socket.recv(nbytes)
@@ -82,15 +71,15 @@ class crlf_tcp(object):
                     return
                 continue
 
-            while '\r\n' in self.ibuffer:
-                line, self.ibuffer = self.ibuffer.split('\r\n', 1)
+            while b'\r\n' in self.ibuffer:
+                line, self.ibuffer = self.ibuffer.split(b'\r\n', 1)
                 self.iqueue.put(decode(line))
 
     def send_loop(self):
         while True:
             line = self.oqueue.get().splitlines()[0][:500]
-            print ">>> %r" % line
-            self.obuffer += line.encode('utf-8', 'replace') + '\r\n'
+            print (">>> %r" % line)
+            self.obuffer += line.encode('utf-8') + b'\r\n'
             while self.obuffer:
                 sent = self.socket.send(self.obuffer)
                 self.obuffer = self.obuffer[sent:]
@@ -149,22 +138,23 @@ class IRC(object):
     "handles the IRC protocol"
     # see the docs/ folder for more information on the protocol
 
-    def __init__(self, conf):
+    def __init__(self, bot, conf):
         self.conn = None
         self.set_conf(conf)
+        self.bot = bot
 
-        self.out = Queue.Queue()  # responses from the server are placed here
+        self.out = queue.Queue()  # responses from the server are placed here
         # format: [rawline, prefix, command, params,
         # nick, user, host, paramlist, msg]
         self.connect()
 
-        thread.start_new_thread(self.parse_loop, ())
+        threading.Thread(target=self.parse_loop).start()
         channels = self.conf.get('channels')
         if channels:
             start_date = datetime.datetime.utcnow() - datetime.timedelta(minutes=5)
             token = self.conf.get('twitter_token')
-            self.pdx_alerts = pdxalerts.PdxAlerts(start_date, token, channels[0])
-            thread.start_new_thread(self.pdx_alerts.run, ())
+#            self.pdx_alerts = pdxalerts.PdxAlerts(start_date, token, channels[0])
+            # threading.Thread(target=self.pdx_alerts.run).start()
 
         time.sleep(10)
         self.msg("NickServ", 'IDENTIFY '+ self.nick + ' ' + self.conf.get('nick_password'))
@@ -182,7 +172,7 @@ class IRC(object):
 
     def connect(self):
         self.conn = self.create_connection()
-        thread.start_new_thread(self.conn.run, ())
+        threading.Thread(target=self.conn.run).start()
         self.cmd("NICK", [self.nick])
         self.cmd("USER",
                  [self.conf.get('user', 'skybot'), "3", "*", self.conf.get('realname',
@@ -215,12 +205,20 @@ class IRC(object):
             if command == "PING":
                 self.cmd("PONG", paramlist)
 
-            for item in self.pdx_alerts.new_tweets:
-                self.msg(self.pdx_alerts.channel, 'Portland OR Alerts: ' + item['text'] + ' ' + item['url'])
-                time.sleep(5)
+            # for item in self.pdx_alerts.new_tweets:
+            #     self.msg(self.pdx_alerts.channel, 'Portland OR Alerts: ' + item['text'] + ' ' + item['url'])
+            #     time.sleep(5)
             
-            self.pdx_alerts.new_tweets = []
+            # self.pdx_alerts.new_tweets = []
 
+    def censor(self, text):
+        text = text.replace('\n', '').replace('\r', '')
+        replacement = '[censored]'
+        if 'censored_strings' in self.bot.config:
+            words = map(re.escape, self.bot.config['censored_strings'])
+            regex = re.compile('(%s)' % "|".join(words))
+            text = regex.sub(replacement, text)
+        return text
 
     def join(self, channel):
         self.cmd("JOIN", channel.split(" "))  # [chan, password]
@@ -237,51 +235,12 @@ class IRC(object):
     def cmd(self, command, params=None):
         if params:
             params[-1] = ':' + params[-1]
-            self.send(command + ' ' + ' '.join(map(censor, params)))
+            self.send(command + ' ' + ' '.join(map(self.censor, params)))
         else:
             self.send(command)
 
     def send(self, str):
         self.conn.oqueue.put(str)
-
-
-class FakeIRC(IRC):
-
-    def __init__(self, conf):
-        self.set_conf(conf)
-        self.out = Queue.Queue()  # responses from the server are placed here
-
-        self.f = open(fn, 'rb')
-
-        thread.start_new_thread(self.parse_loop, ())
-
-    def parse_loop(self):
-        while True:
-            msg = decode(self.f.readline()[9:])
-
-            if msg == '':
-                print "!!!!DONE READING FILE!!!!"
-                return
-
-            if msg.startswith(":"):  # has a prefix
-                prefix, command, params = irc_prefix_rem(msg).groups()
-            else:
-                prefix, command, params = irc_noprefix_rem(msg).groups()
-            nick, user, host = irc_netmask_rem(prefix).groups()
-            paramlist = irc_param_ref(params)
-            lastparam = ""
-            if paramlist:
-                if paramlist[-1].startswith(':'):
-                    paramlist[-1] = paramlist[-1][1:]
-                lastparam = paramlist[-1]
-            self.out.put([msg, prefix, command, params, nick, user, host,
-                          paramlist, lastparam])
-            if command == "PING":
-                self.cmd("PONG", [params])
-
-    def cmd(self, command, params=None):
-        pass
-
 
 class SSLIRC(IRC):
 
